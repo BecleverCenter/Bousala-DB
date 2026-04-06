@@ -10,21 +10,29 @@ echo "Initiating replica set..."
 mongosh --eval "
   try {
     rs.status();
-    print('Already initiated');
   } catch(e) {
     rs.initiate({ _id: 'rs0', members: [{ _id: 0, host: 'localhost:27017' }] });
-    print('Replica set initiated');
   }
 "
 
 echo "Creating admin user..."
 mongosh --eval "
-  use admin
-  db.createUser({
-    user: 'mongo',
-    pwd: 'yourpassword',
-    roles: [{ role: 'root', db: 'admin' }]
-  })
-" || echo "User already exists"
+  db = db.getSiblingDB('admin');
+  if (!db.getUser('$MONGO_INITDB_ROOT_USERNAME')) {
+    db.createUser({
+      user: '$MONGO_INITDB_ROOT_USERNAME',
+      pwd: '$MONGO_INITDB_ROOT_PASSWORD',
+      roles: [{ role: 'root', db: 'admin' }]
+    });
+    print('User created');
+  } else {
+    print('User already exists');
+  }
+"
+
+# Restart with auth enabled
+kill $(pgrep mongod)
+sleep 2
+mongod --ipv6 --bind_ip ::,0.0.0.0 --replSet rs0 --auth
 
 wait
