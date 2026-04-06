@@ -17,4 +17,14 @@ mongosh --eval "
   }
 "
 
+echo "Creating admin user..."
+mongosh --eval "
+  use admin
+  db.createUser({
+    user: 'mongo',
+    pwd: 'yourpassword',
+    roles: [{ role: 'root', db: 'admin' }]
+  })
+" || echo "User already exists"
+
 wait
