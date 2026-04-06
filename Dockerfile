@@ -1,0 +1,6 @@
+FROM mongo:7
+
+COPY init-replset.sh /init-replset.sh
+RUN chmod +x /init-replset.sh
+
+CMD ["/init-replset.sh"]
