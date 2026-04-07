@@ -1,35 +1,42 @@
 #!/bin/bash
 
-# Start WITH auth from the beginning
-mongod --ipv6 --bind_ip ::,0.0.0.0 --replSet rs0 --auth &
+DATA_DIR=/data/db
+FLAG="$DATA_DIR/.initialized"
+KEYFILE="/data/db/keyfile"
 
-echo "Waiting for MongoDB to start..."
-until mongosh --eval "db.adminCommand('ping')" --quiet; do
-  sleep 2
-done
+# Generate keyfile once
+if [ ! -f "$KEYFILE" ]; then
+  openssl rand -base64 756 > "$KEYFILE"
+  chmod 400 "$KEYFILE"
+fi
 
-echo "Initiating replica set..."
-mongosh --eval "
-  try {
-    rs.status();
-  } catch(e) {
+if [ ! -f "$FLAG" ]; then
+  echo "First run — starting without auth to initialize..."
+  mongod --ipv6 --bind_ip ::,0.0.0.0 --replSet rs0 &
+
+  until mongosh --eval "db.adminCommand('ping')" --quiet; do
+    sleep 2
+  done
+
+  mongosh --eval "
     rs.initiate({ _id: 'rs0', members: [{ _id: 0, host: 'localhost:27017' }] });
-  }
-"
+  "
 
-echo "Creating admin user..."
-mongosh --eval "
-  db = db.getSiblingDB('admin');
-  if (!db.getUser('$MONGO_INITDB_ROOT_USERNAME')) {
+  sleep 3
+
+  mongosh --eval "
+    db = db.getSiblingDB('admin');
     db.createUser({
       user: '$MONGO_INITDB_ROOT_USERNAME',
       pwd: '$MONGO_INITDB_ROOT_PASSWORD',
       roles: [{ role: 'root', db: 'admin' }]
     });
-    print('User created');
-  } else {
-    print('User already exists');
-  }
-"
+  "
 
-wait
+  touch "$FLAG"
+  kill $(pgrep mongod)
+  sleep 3
+fi
+
+echo "Starting MongoDB with auth and keyfile..."
+exec mongod --ipv6 --bind_ip ::,0.0.0.0 --replSet rs0 --auth --keyFile "$KEYFILE"
