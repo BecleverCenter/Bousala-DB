@@ -1,5 +1,7 @@
 #!/bin/bash
-mongod --ipv6 --bind_ip ::,0.0.0.0 --replSet rs0 &
+
+# Start WITH auth from the beginning
+mongod --ipv6 --bind_ip ::,0.0.0.0 --replSet rs0 --auth &
 
 echo "Waiting for MongoDB to start..."
 until mongosh --eval "db.adminCommand('ping')" --quiet; do
@@ -29,10 +31,5 @@ mongosh --eval "
     print('User already exists');
   }
 "
-
-# Restart with auth enabled
-kill $(pgrep mongod)
-sleep 2
-mongod --ipv6 --bind_ip ::,0.0.0.0 --replSet rs0 --auth
 
 wait
